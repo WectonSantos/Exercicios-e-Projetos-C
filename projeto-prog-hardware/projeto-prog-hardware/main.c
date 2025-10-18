@@ -89,24 +89,23 @@ void atualizaLedsVida() {
 }
 // FIM ROTINA LDR
 
-
+// ROTINA DOS MOTORES
 void ligaMotoresHorario(){
 	if (PIND & (1<<PD4)) {
 			
-		// define direção: IN1=1, IN2=0 ; IN3=1, IN4=0
+		// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
 		PORTB |=  (1<<PB7)|(1<<PB5);
 		PORTB &= ~((1<<PB4)|(1<<PB0));
 
-		// liga PWM nos enables
+		// LIGA PWM
 		OCR0B = 200;   // duty motor 1 (ajuste entre 0–255)
 		OCR0A = 200;   // duty motor 2
 	}
 	else {
-		// desliga PWM (motores parados)
+		// DESLIGA PWM (MOTORES PARADOS)
 		OCR0B = 0;
 		OCR0A = 0;
 
-		// opcional: deixa INx em 0 para garantir motor livre
 		PORTB &= ~((1<<PB7)|(1<<PB5));
 	}	
 }
@@ -114,23 +113,41 @@ void ligaMotoresHorario(){
 void ligaMotoresAntiHorario(){
 	if (PINB & (1<<PB1)) {
 		
-		// define direção: IN1=1, IN2=0 ; IN3=1, IN4=0
+		// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
 		PORTB |=  (1<<PB4)|(1<<PB0);
 		PORTB &= ~((1<<PB7)|(1<<PB5));
 
-		// liga PWM nos enables
-		OCR0B = 200;   // duty motor 1 (ajuste entre 0–255)
-		OCR0A = 200;   // duty motor 2
+		// LIGA PWM
+		OCR0B = 200; 
+		OCR0A = 200; 
+	}
+	else {
+		// DESLIGA PWM (MOTORES PARADOS)
+		OCR0B = 0;
+		OCR0A = 0;
+		PORTB &= ~((1<<PB7)|(1<<PB5));
+	}
+}
+
+void ligaMotoresMeiaForca(){
+	if (PINB & (1 << PB2)) {
+
+		// define direção padrão (por exemplo, sentido horário)
+		PORTB |=  (1<<PB7)|(1<<PB5);
+		PORTB &= ~((1<<PB4)|(1<<PB0));
+
+		// APLICANDO 50% DE FATOR DE CICLO
+		OCR0B = 128;   // motor 1
+		OCR0A = 128;   // motor 2
 	}
 	else {
 		// desliga PWM (motores parados)
 		OCR0B = 0;
 		OCR0A = 0;
-
-		// opcional: deixa INx em 0 para garantir motor livre
 		PORTB &= ~((1<<PB7)|(1<<PB5));
 	}
 }
+
 
 void verificaSentido(){
 	if (PIND & (1 << PD4)) {
@@ -139,7 +156,7 @@ void verificaSentido(){
 	else if (PINB & (1 << PB1)) {
 		ligaMotoresAntiHorario();
 	}else if (PINB & (1 << PB2)){
-		//50%();
+		ligaMotoresMeiaForca();  
 	}
 	else {
 		// Nenhum botão pressionado ? garantir que motores estão parados
@@ -148,6 +165,23 @@ void verificaSentido(){
 		PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
 	}	
 }
+//FIM ROTINA DOS MOTORES
+
+//ROTINA LASER MODO CTC
+void timer1_init() {
+	TCCR1B |= (1 << WGM12);  // CTC
+	OCR1A = 15624;           // 1 SEGUNDO P/ PRESCALER 1024
+	TIMSK1 |= (1 << OCIE1A); 
+	TCCR1B |= (1 << CS12) | (1 << CS10); 
+	sei();
+}
+
+ISR(TIMER1_COMPA_vect) {
+	PORTB ^= (1 << PB3);  // ALTERNA ESTADO DO LED
+}
+
+
+
 
 int main(void)
 {
@@ -163,24 +197,27 @@ int main(void)
 	uint8_t luzAlta = 0; 
 	// FIM ROTINA LDR
 
-	//TESTE
-	PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
-    // configura Fast PWM no Timer0
-    TCCR0A = (1<<COM0A1)|(1<<COM0B1)|(1<<WGM01)|(1<<WGM00);
-    TCCR0B = (1<<CS01);    // prescaler = 8
 
-    // começa com duty = 0 (motores desligados)
-    OCR0A = 0;  // canal OC0A ? motor 2
-    OCR0B = 0;  // canal OC0B ? motor 1
-	//TESTE
+	//PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
+    // FAST PWM NO TIMER 0
+    TCCR0A = (1<<COM0A1)|(1<<COM0B1)|(1<<WGM01)|(1<<WGM00);
+    TCCR0B = (1<<CS01);    // PRESCALER = 8
+
+    //GARANTE QUE VAI COMEÇAR COM MOTORES DESLIGADOS
+    OCR0A = 0; 
+    OCR0B = 0;  
+
+	
+	//LASER
+	timer1_init();
 
     while (1) 
     {
 		//ROTINA LDR
-		valorLDR = adc_read(4); // lê o ADC4 (PC4)
+		valorLDR = adc_read(4); // LÊ O ADC4 (PC4)
 
 		if (valorLDR > LIMIAR_LUZ) {
-			luzAlta = 1; // LDR recebeu valor alto
+			luzAlta = 1; // LDR RECEBEU VALOR ALTO
 			PORTB |= (1 << PORTB3);
 			} else {
 			luzAlta = 0; 
@@ -191,20 +228,7 @@ int main(void)
 			}
 		}
 		atualizaLedsVida();
-		//FIM ROTINA LDR
-		
-		
-		
-		//LIGANDO MOTORES SENTIDO HORÁRIO
-		/*if(PIND & (1 << PORTD4)){
-			PORTB |= (1 << PORTB7);
-			PORTB |= (1 << PORTB5);
-		}*/
-		
-		//TESTE
 		verificaSentido();								
-		//TESTE
-		
 		
     }
 }
