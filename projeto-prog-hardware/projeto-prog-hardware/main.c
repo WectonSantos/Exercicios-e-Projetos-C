@@ -180,6 +180,54 @@ ISR(TIMER1_COMPA_vect) {
 	PORTB ^= (1 << PB3);  // ALTERNA ESTADO DO LED
 }
 
+//ROTINA CONTROLE BLUETOOTH
+// Inicializa UART em 9600 bps
+void UART_Init(void) {
+	uint16_t ubrr = 103; // 9600 bps @ 16 MHz
+	UBRR0H = (unsigned char)(ubrr >> 8);
+	UBRR0L = (unsigned char)ubrr;
+	UCSR0B = (1 << RXEN0) | (1 << TXEN0);       // habilita RX e TX
+	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);     // 8 bits de dados
+}
+// Recebe um caractere
+char UART_Receive(void) {
+	while (!(UCSR0A & (1 << RXC0))); // espera dado chegar
+	return UDR0;
+}
+
+void controle(){
+	char comando = UART_Receive(); // Espera comando do Bluetooth
+    switch (comando) {
+	    case 'F': // Forward (CIMA)
+	    case 'f':
+		ligaMotoresHorario();
+	    break;
+
+	    case 'B': // Backward (BAIXO)
+	    case 'b':
+		ligaMotoresAntiHorario();
+	    break;
+
+	    case 'L': // Left (ESQUERDA)
+	    case 'l':
+		//pra esquerda
+	    break;
+
+	    case 'R': // Right (DIREITA)
+	    case 'r':
+		//pra direita
+	    break;
+
+	    default:
+		//default
+	    break;
+    }		
+	
+}
+
+
+
+//FIM ROTINA CONTROLE BLUETOOTH
 
 
 
@@ -211,6 +259,10 @@ int main(void)
 	//LASER
 	timer1_init();
 
+	// CONTROLE 
+	UART_Init();
+	controle();
+	
     while (1) 
     {
 		//ROTINA LDR
@@ -230,6 +282,9 @@ int main(void)
 		atualizaLedsVida();
 		verificaSentido();								
 		
+		if (UCSR0A & (1 << RXC0)) { // Se houver dado disponível
+			controle();
+		}
     }
 }
 
