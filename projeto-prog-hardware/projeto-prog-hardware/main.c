@@ -10,19 +10,16 @@
 #include <avr/interrupt.h>
 
 uint8_t vidas = 3;
-// LIMITE DE LUZ LDR
-#define LIMIAR_LUZ 700
 
 // ROTINA QUE CONFIGURA OS LEDS DE VIDA
 void ledsVida(){
-	DDRC |= (1 << PORTC0); // LED 1 (SAÍDA)
-	DDRC |= (1 << PORTC1); // LED 2 (SAÍDA)
-	DDRC |= (1 << PORTC2); // LED 3	(SAÍDA)
+	DDRC |= (1 << PC0); // LED 1 (SAÍDA)
+	DDRC |= (1 << PC1); // LED 2 (SAÍDA)
+	DDRC |= (1 << PC2); // LED 3	(SAÍDA)
 	
-	PORTC |= (1<< PORTC0); // LIGANDO LED 1
-	PORTC |= (1<< PORTC1); // LIGANDO LED 1
-	PORTC |= (1<< PORTC2); // LIGANDO LED 1
-
+	PORTC |= (1<< PC0); // LIGANDO LED 1
+	PORTC |= (1<< PC1); // LIGANDO LED 1
+	PORTC |= (1<< PC2); // LIGANDO LED 1
 }
 // ROTINA QUE CONFIGURA OS MOTORES
 void motores(){
@@ -44,108 +41,106 @@ void motores(){
 
 // BOTÕES PREVIAMENTE QUE SERÃO TROCADOS PELO VALOR RECEBIDO DO CONTROLE
 void botoes(){
-	DDRB &= ~(1 << PORTB1);
-	DDRB &= ~(1 << PORTB2);
-	DDRD &= ~(1 << PORTD4);
+	DDRB &= ~(1 << PB1);
+	DDRB &= ~(1 << PB2);
+	DDRD &= ~(1 << PD4);
 }
 
 // ROTINA QUE CONFIGURA O LASER
 void laser(){
-	DDRB |= (1 << PORTB3); // LASER PORTA B3 (CTC)
+	DDRB |= (1 << PB3); // LASER PORTA B3 (CTC)
 }
 
 // ROTINA LDR
+
 void adc_init(void) {
-	// Referência AVcc (5V), canal ADC4, right adjust
-	ADMUX = (1 << REFS0); // AVcc como referência, canal será configurado na leitura
-	ADCSRA = (1 << ADEN)  // habilita ADC
-	| (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // prescaler 128 (16MHz/128=125kHz)
-	DIDR0 = (1 << ADC4D); // desativa entrada digital no PC4
+	ADMUX = (1 << REFS0); 
+	ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // prescaler 128 (16MHz/128=125kHz)
+	//DIDR0 = (1 << ADC4D);
+	//DDRC &= ~(1 << PC4); 
 }
 
 uint16_t adc_read(uint8_t canal) {
-	// seleciona o canal (0–7)
-	ADMUX = (ADMUX & 0xF0) | (canal & 0x0F);
-	// inicia conversão
+	//ADMUX = (1 << REFS0) | (canal & 0x0F);
+	ADMUX = (ADMUX & 0xF0) | (canal & 0x0f);
 	ADCSRA |= (1 << ADSC);
-	// espera terminar
 	while (ADCSRA & (1 << ADSC));
-	// retorna valor 0–1023
-	return ADC;
+	return ADC; 
 }
+
 
 void atualizaLedsVida() {
 	if (vidas >= 3){
-		PORTC |= (1 << PORTC0) | (1 << PORTC1) | (1 << PORTC2);
+		PORTC |= (1 << PC0) | (1 << PC1) | (1 << PC2);
 	}else if (vidas == 2) {
-		PORTC |= (1 << PORTC1) | (1 << PORTC2);
-		PORTC &= ~(1 << PORTC0);
+		PORTC |= (1 << PC1) | (1 << PC2);
+		PORTC &= ~(1 << PC0);
 	}else if (vidas == 1) {
-		PORTC |= (1 << PORTC2);
-		PORTC &= ~((1 << PORTC0) | (1 << PORTC1));
+		PORTC |= (1 << PC2);
+		PORTC &= ~((1 << PC0) | (1 << PC1));
 	}else{
-		PORTC &= ~((1 << PORTC0) | (1 << PORTC1) | (1 << PORTC2));
+		PORTC &= ~((1 << PC0) | (1 << PC1) | (1 << PC2));
 	}
 }
 // FIM ROTINA LDR
 
 // ROTINA DOS MOTORES
-void ligaMotoresHorario(){
-	if (PIND & (1<<PD4)) {
-			
-		// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
-		PORTB |=  (1<<PB7)|(1<<PB5);
-		PORTB &= ~((1<<PB4)|(1<<PB0));
+void ligaMotoresHorario(){		
+	// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
+	PORTB |=  (1<<PB7)|(1<<PB5);
+	PORTB &= ~((1<<PB4)|(1<<PB0));
 
-		// LIGA PWM
-		OCR0B = 200;   // duty motor 1 (ajuste entre 0–255)
-		OCR0A = 200;   // duty motor 2
-	}
-	else {
-		// DESLIGA PWM (MOTORES PARADOS)
-		OCR0B = 0;
-		OCR0A = 0;
-
-		PORTB &= ~((1<<PB7)|(1<<PB5));
-	}	
+	// LIGA PWM
+	OCR0B = 200;  
+	OCR0A = 200;   
 }
 
 void ligaMotoresAntiHorario(){
-	if (PINB & (1<<PB1)) {
-		
-		// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
-		PORTB |=  (1<<PB4)|(1<<PB0);
-		PORTB &= ~((1<<PB7)|(1<<PB5));
+	// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
+	PORTB |=  (1<<PB4)|(1<<PB0);
+	PORTB &= ~((1<<PB7)|(1<<PB5));
 
-		// LIGA PWM
-		OCR0B = 200; 
-		OCR0A = 200; 
-	}
-	else {
-		// DESLIGA PWM (MOTORES PARADOS)
-		OCR0B = 0;
-		OCR0A = 0;
-		PORTB &= ~((1<<PB7)|(1<<PB5));
-	}
+	// LIGA PWM
+	OCR0B = 200; 
+	OCR0A = 200; 	
 }
 
 void ligaMotoresMeiaForca(){
-	if (PINB & (1 << PB2)) {
+	// DEFINE DIREÇÃO
+	PORTB |=  (1<<PB7)|(1<<PB5);
+	PORTB &= ~((1<<PB4)|(1<<PB0));
 
-		// define direção padrão (por exemplo, sentido horário)
-		PORTB |=  (1<<PB7)|(1<<PB5);
-		PORTB &= ~((1<<PB4)|(1<<PB0));
+	// APLICANDO 50% DE FATOR DE CICLO
+	OCR0B = 128;   // motor 1
+	OCR0A = 128;   // motor 2
+}
 
-		// APLICANDO 50% DE FATOR DE CICLO
-		OCR0B = 128;   // motor 1
-		OCR0A = 128;   // motor 2
-	}
-	else {
-		// desliga PWM (motores parados)
-		OCR0B = 0;
-		OCR0A = 0;
-		PORTB &= ~((1<<PB7)|(1<<PB5));
-	}
+void giraEsquerda() {
+	// MOTOR 1: ANTI-HORÁRIO (PB4)
+	// MOTOR 2: HORÁRIO (PB5)
+	PORTB |= (1 << PB4) | (1 << PB5);
+	PORTB &= ~((1 << PB7) | (1 << PB0));
+
+	// LIGA PWM
+	OCR0B = 200;   // motor 1
+	OCR0A = 200;   // motor 2
+}
+
+void giraDireita() {
+	// MOTOR 1: HORÁRIO (PB7)
+	// MOTOR 2: ANTI-HORÁRIO (PB0)
+	PORTB |= (1 << PB7) | (1 << PB0);
+	PORTB &= ~((1 << PB4) | (1 << PB5));
+
+	// LIGA PWM
+	OCR0B = 200;   // motor 1
+	OCR0A = 200;   // motor 2
+}
+
+void pararMotores() {
+	OCR0A = 0;
+	OCR0B = 0;
+	PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
 }
 
 
@@ -159,7 +154,6 @@ void verificaSentido(){
 		ligaMotoresMeiaForca();  
 	}
 	else {
-		// Nenhum botão pressionado ? garantir que motores estão parados
 		OCR0A = 0;
 		OCR0B = 0;
 		PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
@@ -181,54 +175,77 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 //ROTINA CONTROLE BLUETOOTH
-// Inicializa UART em 9600 bps
+// INICIAALIZA UART EM 9600 BPS
 void UART_Init(void) {
-	uint16_t ubrr = 103; // 9600 bps @ 16 MHz
+	uint16_t ubrr = 103; // 9600 BPS p/ 16 MHz
 	UBRR0H = (unsigned char)(ubrr >> 8);
 	UBRR0L = (unsigned char)ubrr;
-	UCSR0B = (1 << RXEN0) | (1 << TXEN0);       // habilita RX e TX
-	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);     // 8 bits de dados
+	UCSR0B = (1 << RXEN0) | (1 << TXEN0);       // HABILITA RX E TX
+	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);     // 8 BITS DE DADOS
 }
-// Recebe um caractere
+// RECEBE UM CARACTERA
 char UART_Receive(void) {
-	while (!(UCSR0A & (1 << RXC0))); // espera dado chegar
+	while (!(UCSR0A & (1 << RXC0))); // ESPERA DADO CHEGAR
 	return UDR0;
 }
+// ENVIA 1 CARACTERE PELA UART
+void UART_Transmit(char data) {
+	while (!(UCSR0A & (1 << UDRE0))); // ESPERA BUFFER ESVAZIAR
+	UDR0 = data;
+}
+
+// ENVIA STRING PELA UART
+void UART_SendString(const char *str) {
+	while (*str) {
+		UART_Transmit(*str++);
+	}
+}
+
+// ENVIA INT COMO TEXTO PARA UART
+
+void UART_SendInt(uint16_t value) {
+	char buffer[10];
+	itoa(buffer, "%u", value);  // FUNÇÃO QUE CONVERTE INT PARA STRING 
+	UART_SendString(buffer);
+}
+
 
 void controle(){
-	char comando = UART_Receive(); // Espera comando do Bluetooth
+	char comando = UART_Receive(); // ESPERA COMANDO DO BLUETOOTH
     switch (comando) {
-	    case 'F': // Forward (CIMA)
+	    case 'F': // PARA CIMA
 	    case 'f':
-		ligaMotoresHorario();
-	    break;
+			ligaMotoresHorario();
+			PORTD |= (1 << PD2);
+			break;
 
-	    case 'B': // Backward (BAIXO)
+	    case 'B': // PARA BAIXO
 	    case 'b':
-		ligaMotoresAntiHorario();
-	    break;
+			ligaMotoresAntiHorario();
+			PORTD |= (1 << PD2);
+			break;
 
-	    case 'L': // Left (ESQUERDA)
+	    case 'L': // PARA ESQUERDA
 	    case 'l':
-		//pra esquerda
-	    break;
+			giraEsquerda();
+			PORTD |= (1 << PD2);
+			break;
 
-	    case 'R': // Right (DIREITA)
+	    case 'R': // PARA DIREITA
 	    case 'r':
-		//pra direita
-	    break;
+			giraDireita();
+			PORTD |= (1 << PD2);
+
+			break;
 
 	    default:
-		//default
+			pararMotores();
 	    break;
     }		
 	
 }
 
-
-
 //FIM ROTINA CONTROLE BLUETOOTH
-
 
 
 int main(void)
@@ -261,18 +278,25 @@ int main(void)
 
 	// CONTROLE 
 	UART_Init();
-	controle();
 	
+	DDRD |= (1 << PD2); // teste ldr
+
     while (1) 
     {
 		//ROTINA LDR
 		valorLDR = adc_read(4); // LÊ O ADC4 (PC4)
+		// debug ldr
+		UART_SendString("LDR = ");
+		UART_SendInt(valorLDR);
+		UART_SendString("\r\n");	
+		// debug ldr
 
-		if (valorLDR > LIMIAR_LUZ) {
+		if (valorLDR > 300) {
 			luzAlta = 1; // LDR RECEBEU VALOR ALTO
-			PORTB |= (1 << PORTB3);
-			} else {
-			luzAlta = 0; 
+			PORTD |= (1 << PD2);
+		} else{
+			luzAlta = 0;
+			PORTD &= ~(1 << PD2);
 		}
 		if (luzAlta){
 			if(vidas>0){
@@ -282,8 +306,8 @@ int main(void)
 		atualizaLedsVida();
 		verificaSentido();								
 		
-		if (UCSR0A & (1 << RXC0)) { // Se houver dado disponível
-			controle();
+		if (UCSR0A & (1 << RXC0)) { // SE HOUVER ALGO EM UART
+			controle(); // CHAMA CONTROLE
 		}
     }
 }
