@@ -11,11 +11,17 @@
 
 uint8_t vidas = 3;
 
+
+// SEQUÊNCIA: 0 = NORMAL, 1 = GIRANDO 1S, 2 = BLOQUEADO 5S
+volatile uint8_t estado = 0;
+volatile uint32_t contador = 0; // // CONTADOR EM MS
+volatile uint8_t seqRequisitada = 0;// FLAG DE REQUISIÇÃO DA SEQUÊNCIA
+
 // ROTINA QUE CONFIGURA OS LEDS DE VIDA
 void ledsVida(){
 	DDRC |= (1 << PC0); // LED 1 (SAÍDA)
 	DDRC |= (1 << PC1); // LED 2 (SAÍDA)
-	DDRC |= (1 << PC2); // LED 3	(SAÍDA)
+	DDRC |= (1 << PC2); // LED 3 (SAÍDA)
 	
 	PORTC |= (1<< PC0); // LIGANDO LED 1
 	PORTC |= (1<< PC1); // LIGANDO LED 1
@@ -23,17 +29,17 @@ void ledsVida(){
 }
 // ROTINA QUE CONFIGURA OS MOTORES
 void motores(){
-	DDRB |= (1 << PB7); // MOTOR 1 SENTIDO HORÁRIO
-	DDRB |= (1 << PB4); // MOTOR 1 SENTIDO ANTI-HORÁRIO
+	DDRB |= (1 << PB1); // MOTOR 1 SENTIDO HORÁRIO
+	DDRB |= (1 << PB2); // MOTOR 1 SENTIDO ANTI-HORÁRIO
 	DDRD |= (1 << PD5); // MOTOR 1 PWM
 	
-	DDRB |= (1 << PB5); // MOTOR 2 SENTIDO HORÁRIO
-	DDRB |= (1 << PB0); // MOTOR 2 SENTIDO ANTI-HORÁRIO
+	DDRB |= (1 << PB3); // MOTOR 2 SENTIDO HORÁRIO
+	DDRB |= (1 << PB4); // MOTOR 2 SENTIDO ANTI-HORÁRIO
 	DDRD |= (1 << PD6); // MOTOR 2 PWM	
 	
 	//TESTE
     // IN1–IN4 como saída
-    DDRB |= (1<<PB7)|(1<<PB4)|(1<<PB5)|(1<<PB0);
+    DDRB |= (1<<PB1)|(1<<PB2)|(1<<PB3)|(1<<PB4);
     // ENA (PD5) e ENB (PD6) como saída, mas sem setar PORTD ainda
     DDRD |= (1<<PD5)|(1<<PD6);
 	//TESTE
@@ -41,14 +47,14 @@ void motores(){
 
 // BOTÕES PREVIAMENTE QUE SERÃO TROCADOS PELO VALOR RECEBIDO DO CONTROLE
 void botoes(){
-	DDRB &= ~(1 << PB1);
-	DDRB &= ~(1 << PB2);
+	DDRB &= ~(1 << PB6);
+	DDRB &= ~(1 << PB0);
 	DDRD &= ~(1 << PD4);
 }
 
 // ROTINA QUE CONFIGURA O LASER
 void laser(){
-	DDRB |= (1 << PB3); // LASER PORTA B3 (CTC)
+	DDRC |= (1 << PC3); // LASER PORTA C3 (CTC)
 }
 
 // ROTINA LDR
@@ -87,8 +93,8 @@ void atualizaLedsVida() {
 // ROTINA DOS MOTORES
 void ligaMotoresHorario(){		
 	// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
-	PORTB |=  (1<<PB7)|(1<<PB5);
-	PORTB &= ~((1<<PB4)|(1<<PB0));
+	PORTB |=  (1<<PB1)|(1<<PB3);
+	PORTB &= ~((1<<PB2)|(1<<PB4));
 
 	// LIGA PWM
 	OCR0B = 200;  
@@ -96,9 +102,9 @@ void ligaMotoresHorario(){
 }
 
 void ligaMotoresAntiHorario(){
-	// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=1, IN4=0
-	PORTB |=  (1<<PB4)|(1<<PB0);
-	PORTB &= ~((1<<PB7)|(1<<PB5));
+	// DEFINE DIREÇÃO: IN1=0, IN2=1 ; IN3=0, IN4=1
+	PORTB |=  (1<<PB2)|(1<<PB4);
+	PORTB &= ~((1<<PB1)|(1<<PB3));
 
 	// LIGA PWM
 	OCR0B = 200; 
@@ -107,8 +113,8 @@ void ligaMotoresAntiHorario(){
 
 void ligaMotoresMeiaForca(){
 	// DEFINE DIREÇÃO
-	PORTB |=  (1<<PB7)|(1<<PB5);
-	PORTB &= ~((1<<PB4)|(1<<PB0));
+	PORTB |=  (1<<PB1)|(1<<PB3);
+	PORTB &= ~((1<<PB2)|(1<<PB4));
 
 	// APLICANDO 50% DE FATOR DE CICLO
 	OCR0B = 128;   // motor 1
@@ -118,8 +124,8 @@ void ligaMotoresMeiaForca(){
 void giraEsquerda() {
 	// MOTOR 1: ANTI-HORÁRIO (PB4)
 	// MOTOR 2: HORÁRIO (PB5)
-	PORTB |= (1 << PB4) | (1 << PB5);
-	PORTB &= ~((1 << PB7) | (1 << PB0));
+	PORTB |= (1 << PB1) | (1 << PB3);
+	PORTB &= ~((1 << PB2) | (1 << PB4));
 
 	// LIGA PWM
 	OCR0B = 200;   // motor 1
@@ -129,18 +135,27 @@ void giraEsquerda() {
 void giraDireita() {
 	// MOTOR 1: HORÁRIO (PB7)
 	// MOTOR 2: ANTI-HORÁRIO (PB0)
-	PORTB |= (1 << PB7) | (1 << PB0);
-	PORTB &= ~((1 << PB4) | (1 << PB5));
+	PORTB |= (1 << PB1) | (1 << PB6);
+	PORTB &= ~((1 << PB3) | (1 << PB4));
 
 	// LIGA PWM
 	OCR0B = 200;   // motor 1
 	OCR0A = 200;   // motor 2
 }
 
+void girar360(){
+	// DEFINE DIREÇÃO: IN1=1, IN2=0 ; IN3=0, IN4=1
+	PORTB |=  (1<<PB1)|(1<<PB4);
+	PORTB &= ~((1<<PB2)|(1<<PB3));
+	// LIGA PWM
+	OCR0B = 200;
+	OCR0A = 200;
+}
+
 void pararMotores() {
 	OCR0A = 0;
 	OCR0B = 0;
-	PORTB &= ~((1 << PB7) | (1 << PB5) | (1 << PB4) | (1 << PB0));
+	PORTB &= ~((1 << PB1) | (1 << PB6) | (1 << PB3) | (1 << PB4));
 }
 
 
@@ -148,11 +163,11 @@ void verificaSentido(){
 	if (PIND & (1 << PD4)) {
 		ligaMotoresHorario();
 	}
-	else if (PINB & (1 << PB1)) {
+	else if (PINB & (1 << PB0)) {
 		ligaMotoresAntiHorario();
-	}else if (PINB & (1 << PB2)){
-		ligaMotoresMeiaForca();  
-	}
+	}//else if (PINB & (1 << PB6)){
+		//ligaMotoresMeiaForca();  
+	//}
 	else {
 		OCR0A = 0;
 		OCR0B = 0;
@@ -166,16 +181,76 @@ void timer1_init() {
 	TCCR1B |= (1 << WGM12);  // CTC
 	OCR1A = 15624;           // 1 SEGUNDO P/ PRESCALER 1024
 	TIMSK1 |= (1 << OCIE1A); 
-	TCCR1B |= (1 << CS12) | (1 << CS10); 
+	TCCR1B |= (1 << CS12) | (1 << CS10); // PRESCALER 1024
 	sei();
 }
 
+// DESLIGA O TIMER1 (PARA NÃO ALTERAR O LASER DURANTE BLOQUEIO)
+void timer1_stop() {
+	TIMSK1 &= ~(1 << OCIE1A);
+	TCCR1B = 0;
+}
+// PISCA LASER SE ESTIVER EM MODO NORMAL == SEM BLOQUEIO
 ISR(TIMER1_COMPA_vect) {
-	PORTB ^= (1 << PB3);  // ALTERNA ESTADO DO LED
+	if (estado == 0){
+		PORTC ^= (1 << PC3);
+	}
+	//PORTC ^= (1 << PC3);  // ALTERNA ESTADO DO LED
 }
 
+// TICKS DE 1 MS PARA GERENCIAR A SEQUÊNCIA SEM DELAY
+void timer2_init(void){
+	TCCR2A = (1 << WGM21); // CTC
+	OCR2A = 249; // COM PRESCALER 64 => 1MS
+	TIMSK2 |= (1 << OCIE2A);
+	TCCR2B = (1 << CS22); // PRESCALER 64
+	sei();
+}
+// DESLIGA O TIMER2
+void timer2_stop(void){
+	TIMSK2 &= ~(1 << OCIE2A);
+	TCCR2B = 0;
+}
+
+// CONTROLE DA SEQUÊNCIA (1S GIRANDO, 5S BLOQUEADO)
+ISR(TIMER2_COMPA_vect){
+
+	if (estado == 0 && seqRequisitada == 0) return; // SE NÃO HOUVER SEQUENCIA NÃO FAZ NADA
+
+	contador++; 
+
+	if (estado == 1) {
+		// LDR RECEBEU VALOR ALTO E ESPERA 1S PARA COMPLETAR O GIRO 360
+		if (contador >= 1000) {
+			// APÓS O GIRO PARA MOTORES, DESLIGA LASER, INICIA BLOQUEIO
+			pararMotores(); 
+			PORTC &= ~(1 << PC3);// DESLIGA LASER
+			timer1_stop(); // GARANTE QUE O TIMER1 NÃO VAI MAIS PISCAR
+			estado = 2; // ALTERNA PARA O ESTADO DE BLOQUEIO
+			contador = 0; 
+		}
+	} else if (estado == 2) { // ESTÁ BLOQUEADO, AGUARDA 5S
+		if (contador >= 5000) {
+			// AO SAIR DO BLOQUEIO RETORNA AO MODO NORMAL
+			estado = 0;
+			contador = 0;
+			seqRequisitada = 0;
+			timer1_init(); // REATIVA O PISCA DO LASER
+			PORTC &= ~(1 << PC3);
+			timer2_stop();
+		}
+	}
+}
+void executaPedidoSequencia(void){
+	if (seqRequisitada) return; // JÁ TEM UMA SEQUÊNCIA ATIVA
+	seqRequisitada = 1;
+	estado = 1; // ENTRA NO GIRO DE 360 POR 1S
+	contador = 0;
+	girar360();
+	timer2_init(); // INICIA CONTAGEM  
+}
 //ROTINA CONTROLE BLUETOOTH
-// INICIAALIZA UART EM 9600 BPS
+// INICIALIZA UART EM 9600 BPS
 void UART_Init(void) {
 	uint16_t ubrr = 103; // 9600 BPS p/ 16 MHz
 	UBRR0H = (unsigned char)(ubrr >> 8);
@@ -253,7 +328,7 @@ int main(void)
 	// SETANDO TODAS AS PORTAS
 	ledsVida(); 
 	motores(); 
-	botoes(); 
+	//botoes(); 
 	laser(); 
 	
 	// ROTINA LDR
@@ -271,7 +346,6 @@ int main(void)
     //GARANTE QUE VAI COMEÇAR COM MOTORES DESLIGADOS
     OCR0A = 0; 
     OCR0B = 0;  
-
 	
 	//LASER
 	timer1_init();
@@ -279,12 +353,13 @@ int main(void)
 	// CONTROLE 
 	UART_Init();
 	
-	DDRD |= (1 << PD2); // teste ldr
+    // GARANTE SAÍDAS LIMPAS
+	PORTB &= ~((1 << PB1) | (1 << PB2) | (1 << PB3) | (1 << PB4));	
 
     while (1) 
     {
 		//ROTINA LDR
-		valorLDR = adc_read(4); // LÊ O ADC4 (PC4)
+		valorLDR = adc_read(5); // LÊ O ADC5 (PC5)
 		// debug ldr
 		UART_SendString("LDR = ");
 		UART_SendInt(valorLDR);
@@ -293,6 +368,7 @@ int main(void)
 
 		if (valorLDR > 300) {
 			luzAlta = 1; // LDR RECEBEU VALOR ALTO
+			executaPedidoSequencia();
 			PORTD |= (1 << PD2);
 		} else{
 			luzAlta = 0;
@@ -304,11 +380,20 @@ int main(void)
 			}
 		}
 		atualizaLedsVida();
-		verificaSentido();								
 		
-		if (UCSR0A & (1 << RXC0)) { // SE HOUVER ALGO EM UART
-			controle(); // CHAMA CONTROLE
-		}
+		// SOMENTE ACEITA CONTROLES QUANDO NÃO ESTIVER EM BLOQUEIO
+        if (estado == 0) {
+	        verificaSentido();
+
+	        if (PINB & (1 << PB6)){
+		        executaPedidoSequencia();
+	        }
+	        // UART - se houver dado
+	        if (UCSR0A & (1 << RXC0)){ // SE HOUVER ALGO EM UART
+		        controle();  // CHAMA CONTROLE
+	        }
+	        }else{
+        }
+									
     }
 }
-
